@@ -18,7 +18,7 @@ services:
       - key: ULTRAVOX_API_KEY
         sync: false
       - key: GHL_API_KEY
-        sync: false
+        sync: false  
       - key: GHL_LOCATION_ID
         sync: false
       - key: PORT
