@@ -19,9 +19,7 @@ const requiredEnvVars = [
   'TWILIO_ACCOUNT_SID',
   'TWILIO_AUTH_TOKEN',
   'TWILIO_PHONE_NUMBER',
-  'ULTRAVOX_API_KEY',
-  'GHL_API_KEY',
-  'GHL_LOCATION_ID'
+  'ULTRAVOX_API_KEY'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
@@ -30,6 +28,13 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
+// Optional GHL configuration
+const GHL_ENABLED = process.env.GHL_API_KEY && process.env.GHL_LOCATION_ID;
+if (GHL_ENABLED) {
+  console.log('GHL integration enabled');
+} else {
+  console.log('GHL integration disabled - missing GHL_API_KEY or GHL_LOCATION_ID');
+}
 // Twilio configuration
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -580,40 +585,48 @@ app.post('/call-status', async (req, res) => {
             break;
         case 'busy':
             console.log(`Call ${callSid} was busy`);
-            try {
-                const tag = encodeURIComponent('jenna -> call-busy');
-                const formattedPhone = formatPhoneNumberForTagging(phoneNumber || to);
-                const tagUrl = `https://tag-ghl-jenna.onrender.com/api/contacts?clientName=${encodeURIComponent(clientName)}&phoneNumber=${formattedPhone}&tag=${tag}`;
-                
-                console.log('Tagging busy contact with URL:', tagUrl);
-                
-                const response = await fetch(tagUrl);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to tag contact: ${response.statusText} - ${errorText}`);
+            if (GHL_ENABLED) {
+                try {
+                    const tag = encodeURIComponent('jenna -> call-busy');
+                    const formattedPhone = formatPhoneNumberForTagging(phoneNumber || to);
+                    const tagUrl = `https://tag-ghl-jenna.onrender.com/api/contacts?clientName=${encodeURIComponent(clientName)}&phoneNumber=${formattedPhone}&tag=${tag}`;
+                    
+                    console.log('Tagging busy contact with URL:', tagUrl);
+                    
+                    const response = await fetch(tagUrl);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Failed to tag contact: ${response.statusText} - ${errorText}`);
+                    }
+                    console.log(`Successfully tagged contact for busy call: ${to}`);
+                } catch (error) {
+                    console.error('Error tagging busy contact:', error);
                 }
-                console.log(`Successfully tagged contact for busy call: ${to}`);
-            } catch (error) {
-                console.error('Error tagging busy contact:', error);
+            } else {
+                console.log('GHL tagging skipped - GHL not configured');
             }
             break;
         case 'no-answer':
             console.log(`Call ${callSid} was not answered`);
-            try {
-                const tag = encodeURIComponent('jenna -> call-no-answer');
-                const formattedPhone = formatPhoneNumberForTagging(phoneNumber || to);
-                const tagUrl = `https://tag-ghl-jenna.onrender.com/api/contacts?clientName=${encodeURIComponent(clientName)}&phoneNumber=${formattedPhone}&tag=${tag}`;
-                
-                console.log('Tagging no-answer contact with URL:', tagUrl);
-                
-                const response = await fetch(tagUrl);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to tag contact: ${response.statusText} - ${errorText}`);
+            if (GHL_ENABLED) {
+                try {
+                    const tag = encodeURIComponent('jenna -> call-no-answer');
+                    const formattedPhone = formatPhoneNumberForTagging(phoneNumber || to);
+                    const tagUrl = `https://tag-ghl-jenna.onrender.com/api/contacts?clientName=${encodeURIComponent(clientName)}&phoneNumber=${formattedPhone}&tag=${tag}`;
+                    
+                    console.log('Tagging no-answer contact with URL:', tagUrl);
+                    
+                    const response = await fetch(tagUrl);
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`Failed to tag contact: ${response.statusText} - ${errorText}`);
+                    }
+                    console.log(`Successfully tagged contact for no-answer call: ${to}`);
+                } catch (error) {
+                    console.error('Error tagging no-answer contact:', error);
                 }
-                console.log(`Successfully tagged contact for no-answer call: ${to}`);
-            } catch (error) {
-                console.error('Error tagging no-answer contact:', error);
+            } else {
+                console.log('GHL tagging skipped - GHL not configured');
             }
             break;
         case 'failed':
